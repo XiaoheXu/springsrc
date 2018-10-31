@@ -1,4 +1,4 @@
-package com.chris.myspring.annotation;
+package com.chris.spring.annotation;
 
 import java.lang.annotation.*;
 
