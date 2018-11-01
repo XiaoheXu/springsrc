@@ -93,6 +93,7 @@ public class DispatcherServlet extends HttpServlet {
         for (Map.Entry<String, Object> entry : ioc.entrySet()) {
             String url = "";
             Class<?> clz = entry.getValue().getClass();
+            // 如果类上有@RequestMapping，则url中需要包含
             if (clz.isAnnotationPresent(RequestMapping.class)) {
                 RequestMapping mapping = clz.getAnnotation(RequestMapping.class);
                 url = (url + mapping.value()).replace("//", "/");
@@ -107,7 +108,7 @@ public class DispatcherServlet extends HttpServlet {
                 if (!method.isAnnotationPresent(RequestMapping.class)) {
                     continue;
                 }
-
+                // 将方法上标注的url添加到总的url中
                 RequestMapping mapping = method.getAnnotation(RequestMapping.class);
                 url = (url + "/" + mapping.value()).replace("//", "/");
                 handlerMappings.put(url, method);
@@ -116,7 +117,7 @@ public class DispatcherServlet extends HttpServlet {
     }
 
     /**
-     * 完成依赖注入
+     * 完成依赖注入，将标有@Autowired的成员变量注入到对象中
      */
     private void doWired() {
         // 遍历所有对象，看是否有没有@Autowired注解
@@ -124,6 +125,7 @@ public class DispatcherServlet extends HttpServlet {
             Object bean = entry.getValue();
             Class<?> clz = bean.getClass();
             for (Field field : clz.getDeclaredFields()) {
+                // 只有标注为Autowired 才会注入对象
                 if (!field.isAnnotationPresent(Autowired.class)) {
                     continue;
                 }
@@ -151,6 +153,7 @@ public class DispatcherServlet extends HttpServlet {
      * 递归扫描所有的文件
      */
     private void doScanner(File file) {
+        // 如果是路径，则递归扫描
         if (file.isDirectory()) {
             File[] subFiles = file.listFiles();
             for (int index = 0; index < subFiles.length; index++)
@@ -159,7 +162,7 @@ public class DispatcherServlet extends HttpServlet {
             if (!file.getName().endsWith(".class")) {
                 return;
             }
-
+            // 取类名 com.chris.spring.action.InsertAction
             String className = file.getAbsolutePath()
                     .replace(rootPath + "\\", "")
                     .replace(".class", "")
@@ -172,12 +175,14 @@ public class DispatcherServlet extends HttpServlet {
                 }
                 String beanName = lowerFirstCase(clzz.getSimpleName());
                 Object obj = clzz.newInstance();
+                // 如果Service有value则使用value中标定的beanName
                 if (clzz.isAnnotationPresent(Service.class)) {
                     Service service = clzz.getAnnotation(Service.class);
                     beanName = service.value();
                 }
-                ioc.put(beanName, obj);
 
+                // 将对象放入IOC容器
+                ioc.put(beanName, obj);
             } catch (ClassNotFoundException | IllegalAccessException | InstantiationException e) {
                 e.printStackTrace();
             }
@@ -194,6 +199,11 @@ public class DispatcherServlet extends HttpServlet {
         doDispatch(req, resp);
     }
 
+    /**
+     * 在HandlerMapping 中找到
+     * @param request
+     * @param response
+     */
     protected void doDispatch(HttpServletRequest request, HttpServletResponse response) {
         String url = request.getRequestURI();
         Method method;
@@ -208,7 +218,7 @@ public class DispatcherServlet extends HttpServlet {
         }
 
         try {
-            method.invoke(obj, new Object[]{request, response});
+            method.invoke(obj, request, response);
         } catch (IllegalAccessException e) {
             e.printStackTrace();
             System.out.println(Arrays.toString(e.getStackTrace()));
@@ -216,8 +226,6 @@ public class DispatcherServlet extends HttpServlet {
             e.printStackTrace();
             System.out.println(Arrays.toString(e.getStackTrace()));
         }
-
-
     }
 
     private String lowerFirstCase(String s) {
